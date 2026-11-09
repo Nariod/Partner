@@ -6,7 +6,11 @@ use std::time::Duration;
 pub enum UpdateMsg {
     NoUpdate,
     Available(Release),
-    Downloaded { version: String, path: PathBuf },
+    Downloaded {
+        version: String,
+        path: PathBuf,
+        sha256: String,
+    },
     Error(String),
 }
 
@@ -14,7 +18,11 @@ pub enum UpdateState {
     Idle,
     NoUpdate,
     Available(Release),
-    Downloaded { version: String, path: PathBuf },
+    Downloaded {
+        version: String,
+        path: PathBuf,
+        sha256: String,
+    },
     Error(String),
 }
 
@@ -84,12 +92,12 @@ pub fn download_update(release: &Release, tx: Sender<UpdateMsg>) {
             return Err("SHA-256 mismatch: refusing to install unverified update".into());
         }
         let dir = std::env::temp_dir().join("partner-update");
-        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let dest = dir.join(&asset_name);
-        std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+        partner_core::storage::write_private_file(&dest, &bytes).map_err(|e| e.to_string())?;
         Ok(UpdateMsg::Downloaded {
             version,
             path: dest,
+            sha256: expected,
         })
     })();
     let _ = tx.send(match msg {
@@ -128,6 +136,13 @@ fn expected_checksum(release: &Release, asset_name: &str) -> Result<String, Stri
         return Ok(text);
     }
     Err("release publishes no checksums; refusing to download".into())
+}
+
+pub fn verify_file_sha256(path: &Path, expected: &str) -> bool {
+    match std::fs::read(path) {
+        Ok(bytes) => update::verify_sha256(&bytes, expected),
+        Err(_) => false,
+    }
 }
 
 #[cfg(windows)]

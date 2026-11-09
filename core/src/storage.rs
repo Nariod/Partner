@@ -35,14 +35,26 @@ pub fn tmp_path(path: &Path) -> PathBuf {
     PathBuf::from(s)
 }
 
+fn private_create_options() -> OpenOptions {
+    let mut o = OpenOptions::new();
+    o.read(true).write(true).create(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        o.mode(0o600);
+    }
+    o
+}
+
+fn private_write_options() -> OpenOptions {
+    let mut o = private_create_options();
+    o.truncate(true);
+    o
+}
+
 pub fn acquire_lock(path: &Path) -> Result<FileLock> {
     let lp = lock_path(path);
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&lp)?;
+    let file = private_create_options().open(&lp)?;
     set_private(&lp)?;
     match file.try_lock() {
         Ok(()) => {}
@@ -56,31 +68,30 @@ pub fn acquire_lock(path: &Path) -> Result<FileLock> {
 }
 
 pub fn save_atomic(path: &Path, data: &[u8], backups: usize) -> Result<()> {
+    let tmp = tmp_path(path);
+    {
+        let mut f = private_write_options().open(&tmp)?;
+        f.write_all(data)?;
+        f.sync_all()?;
+    }
     if backups > 0 {
-        for i in (1..=backups).rev() {
-            let from = if i == 1 {
-                path.to_path_buf()
-            } else {
-                backup_path(path, i - 1)
-            };
+        for i in (2..=backups).rev() {
+            let from = backup_path(path, i - 1);
             let to = backup_path(path, i);
             if from.exists() {
                 let _ = fs::remove_file(&to);
                 fs::rename(&from, &to)?;
             }
         }
+        let bak1 = backup_path(path, 1);
+        if path.exists() {
+            let _ = fs::remove_file(&bak1);
+            if fs::hard_link(path, &bak1).is_err() {
+                fs::copy(path, &bak1)?;
+            }
+            set_private(&bak1)?;
+        }
     }
-    let tmp = tmp_path(path);
-    {
-        let mut f = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&tmp)?;
-        f.write_all(data)?;
-        f.sync_all()?;
-    }
-    set_private(&tmp)?;
     fs::rename(&tmp, path)?;
     set_private(path)?;
     Ok(())
@@ -95,11 +106,7 @@ pub fn write_private_file(path: &Path, data: &[u8]) -> Result<()> {
         fs::create_dir_all(parent)?;
         set_private_dir(parent)?;
     }
-    let mut f = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(path)?;
+    let mut f = private_write_options().open(path)?;
     f.write_all(data)?;
     f.sync_all()?;
     set_private(path)?;
@@ -119,13 +126,13 @@ pub fn set_private(_path: &Path) -> Result<()> {
 }
 
 #[cfg(unix)]
-fn set_private_dir(path: &Path) -> Result<()> {
+pub fn set_private_dir(path: &Path) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
     let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o700));
     Ok(())
 }
 
 #[cfg(not(unix))]
-fn set_private_dir(_path: &Path) -> Result<()> {
+pub fn set_private_dir(_path: &Path) -> Result<()> {
     Ok(())
 }

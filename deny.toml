@@ -4,8 +4,14 @@ all-features = false
 [advisories]
 version = 2
 yanked = "deny"
-unmaintained = "warn"
-ignore = []
+unmaintained = "workspace"
+unsound = "workspace"
+ignore = [
+    # Transitive via age 0.12 -> p256 0.13 -> elliptic-curve -> crypto-bigint 0.5 (unpatched upstream;
+    # the vulnerable constant-time ops are in the P-256 path, which Partner does not use: we only
+    # exercise x25519 + scrypt + ChaCha20-Poly1305). Re-evaluate on every age upgrade.
+    "RUSTSEC-2026-0387",
+]
 
 [licenses]
 allow = [
@@ -23,6 +29,10 @@ allow = [
     "MPL-2.0",
     "CC0-1.0",
     "Unlicense",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
 ]
 confidence-threshold = 0.8
 

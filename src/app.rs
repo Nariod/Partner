@@ -22,6 +22,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use zeroize::Zeroizing;
 
 pub const APP_ID: &str = "io.github.Nariod.Partner";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -140,8 +141,16 @@ impl PartnerApp {
             match msg {
                 UpdateMsg::NoUpdate => self.update_state = UpdateState::NoUpdate,
                 UpdateMsg::Available(rel) => self.update_state = UpdateState::Available(rel),
-                UpdateMsg::Downloaded { version, path } => {
-                    self.update_state = UpdateState::Downloaded { version, path };
+                UpdateMsg::Downloaded {
+                    version,
+                    path,
+                    sha256,
+                } => {
+                    self.update_state = UpdateState::Downloaded {
+                        version,
+                        path,
+                        sha256,
+                    };
                 }
                 UpdateMsg::Error(e) => self.update_state = UpdateState::Error(e),
             }
@@ -244,14 +253,14 @@ impl PartnerApp {
                     ui.checkbox(use_key, s.use_key_instead);
                     if *use_key {
                         ui.add(
-                            egui::TextEdit::singleline(key)
+                            egui::TextEdit::singleline(&mut **key)
                                 .password(true)
                                 .desired_width(380.0)
                                 .hint_text(s.age_secret_key),
                         );
                     } else {
                         ui.add(
-                            egui::TextEdit::singleline(pass)
+                            egui::TextEdit::singleline(&mut **pass)
                                 .password(true)
                                 .desired_width(380.0)
                                 .hint_text(s.passphrase),
@@ -447,7 +456,7 @@ impl PartnerApp {
                         });
                     });
             }
-            UpdateState::Downloaded { version, path } => {
+            UpdateState::Downloaded { version, path, .. } => {
                 egui::Frame::window(ui.style())
                     .fill(egui::Color32::from_rgb(10, 70, 30))
                     .show(ui, |ui| {
@@ -602,13 +611,13 @@ impl PartnerApp {
             form.error = Some(strings().missing_fields.to_string());
             return;
         }
-        if form.pass1 != form.pass2 {
+        if *form.pass1 != *form.pass2 {
             form.error = Some(strings().passphrases_mismatch.to_string());
             return;
         }
         let title = form.title.clone();
         let path = form.path.clone().unwrap();
-        let pass = form.pass1.clone();
+        let pass = (*form.pass1).clone();
         let armor = form.armor;
         let backups = self.config.settings.backups;
         let doc = Document::new(title);
@@ -655,8 +664,8 @@ impl PartnerApp {
                 self.screen = Screen::Unlock {
                     path,
                     lock,
-                    pass: String::new(),
-                    key: String::new(),
+                    pass: Zeroizing::new(String::new()),
+                    key: Zeroizing::new(String::new()),
                     use_key: false,
                     error: None,
                 };
@@ -678,9 +687,9 @@ impl PartnerApp {
             return;
         };
         let creds = if use_key {
-            vec![Credential::key(key.trim().to_string())]
+            vec![Credential::key((*key).trim().to_string())]
         } else {
-            vec![Credential::passphrase(pass)]
+            vec![Credential::passphrase((*pass).clone())]
         };
         let result = storage::load(&path).and_then(|data| decrypt_document(&data, &creds));
         match result {
@@ -710,8 +719,8 @@ impl PartnerApp {
                 self.screen = Screen::Unlock {
                     path,
                     lock,
-                    pass: String::new(),
-                    key: String::new(),
+                    pass: Zeroizing::new(String::new()),
+                    key: Zeroizing::new(String::new()),
                     use_key,
                     error: Some(msg),
                 };
@@ -725,14 +734,15 @@ impl PartnerApp {
             self.screen = Screen::Unlock {
                 path,
                 lock: open.lock,
-                pass: String::new(),
-                key: String::new(),
+                pass: Zeroizing::new(String::new()),
+                key: Zeroizing::new(String::new()),
                 use_key: false,
                 error: None,
             };
             self.renaming = None;
             self.switcher = None;
             self.palette = None;
+            self.dialog = None;
             self.status = strings().locked_msg.to_string();
         }
     }
@@ -935,8 +945,14 @@ impl PartnerApp {
                     }
                 }
                 Action::UpdateInstall => {
-                    if let UpdateState::Downloaded { path, .. } = &self.update_state {
+                    if let UpdateState::Downloaded { path, sha256, .. } = &self.update_state {
                         let path = path.clone();
+                        let sha256 = sha256.clone();
+                        if !updater::verify_file_sha256(&path, &sha256) {
+                            self.update_state =
+                                UpdateState::Error("downloaded file failed re-verification".into());
+                            continue;
+                        }
                         if cfg!(windows) {
                             if updater::install_and_restart(&path).is_ok() {
                                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);

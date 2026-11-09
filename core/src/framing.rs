@@ -6,7 +6,7 @@ pub const FORMAT_VERSION: u8 = 1;
 const ZSTD_LEVEL: i32 = 6;
 
 pub fn frame(doc: &Document) -> Result<Vec<u8>> {
-    let plain = bincode::serde::encode_to_vec(doc, bincode::config::standard())?;
+    let plain = postcard::to_allocvec(doc)?;
     let mut out = Vec::with_capacity(plain.len() / 2 + 16);
     out.extend_from_slice(MAGIC);
     out.push(FORMAT_VERSION);
@@ -25,7 +25,6 @@ pub fn unframe(bytes: &[u8]) -> Result<Document> {
         )));
     }
     let plain = zstd::decode_all(&bytes[8..])?;
-    let (doc, _): (Document, usize) =
-        bincode::serde::decode_from_slice(&plain, bincode::config::standard())?;
+    let doc: Document = postcard::from_bytes(&plain)?;
     Ok(doc)
 }

@@ -10,7 +10,7 @@ repository = "https://github.com/Nariod/Partner"
 [dependencies]
 age = { version = "0.12", features = ["armor"] }
 serde = { version = "1", features = ["derive"] }
-bincode = { version = "2.0", features = ["serde"] }
+postcard = { version = "1", features = ["use-std"] }
 zstd = "0.13"
 zeroize = { version = "1", features = ["derive"] }
 thiserror = "2"

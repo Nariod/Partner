@@ -2,6 +2,7 @@ use crate::i18n::strings;
 use eframe::egui::{self, RichText};
 use partner_core::model::NodeId;
 use std::path::PathBuf;
+use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Command {
@@ -51,8 +52,8 @@ pub struct Palette {
 pub struct NewDocForm {
     pub title: String,
     pub path: Option<PathBuf>,
-    pub pass1: String,
-    pub pass2: String,
+    pub pass1: Zeroizing<String>,
+    pub pass2: Zeroizing<String>,
     pub armor: bool,
     pub error: Option<String>,
 }
@@ -62,8 +63,8 @@ impl Default for NewDocForm {
         Self {
             title: "Mission".to_string(),
             path: None,
-            pass1: String::new(),
-            pass2: String::new(),
+            pass1: Zeroizing::new(String::new()),
+            pass2: Zeroizing::new(String::new()),
             armor: false,
             error: None,
         }
@@ -254,7 +255,7 @@ pub fn dialog_window(
                     ui.horizontal(|ui| {
                         ui.label(strings().passphrase);
                         ui.add(
-                            egui::TextEdit::singleline(&mut form.pass1)
+                            egui::TextEdit::singleline(&mut *form.pass1)
                                 .password(true)
                                 .desired_width(f32::INFINITY),
                         );
@@ -262,7 +263,7 @@ pub fn dialog_window(
                     ui.horizontal(|ui| {
                         ui.label(strings().confirm_passphrase);
                         ui.add(
-                            egui::TextEdit::singleline(&mut form.pass2)
+                            egui::TextEdit::singleline(&mut *form.pass2)
                                 .password(true)
                                 .desired_width(f32::INFINITY),
                         );

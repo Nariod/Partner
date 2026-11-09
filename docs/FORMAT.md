@@ -32,8 +32,7 @@ The plaintext of the age file is the Partner payload:
 +-------------------+-------------------+--------------------------------+
 ```
 
-The decompressed data is a [bincode 2](https://docs.rs/bincode) (serde,
-standard config) serialization of the `Document` structure:
+The decompressed data is a [postcard](https://docs.rs/postcard) (serde) serialization of the `Document` structure:
 
 ```rust
 Document {

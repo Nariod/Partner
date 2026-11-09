@@ -412,3 +412,50 @@ fn render_blob_image(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use egui::text::{CCursor, CCursorRange, CharIndex};
+    use partner_core::model::Document;
+
+    fn cr(a: usize, b: usize) -> Option<CCursorRange> {
+        Some(CCursorRange {
+            primary: CCursor {
+                index: CharIndex(a),
+                prefer_next_row: false,
+            },
+            secondary: CCursor {
+                index: CharIndex(b),
+                prefer_next_row: false,
+            },
+            h_pos: None,
+        })
+    }
+
+    #[test]
+    fn cursor_byte_range_handles_unicode() {
+        let text = "héllo wörld";
+        assert_eq!(cursor_byte_range(text, cr(0, 0)), Some((0, 0)));
+        assert_eq!(cursor_byte_range(text, cr(2, 5)), Some((3, 6)));
+        assert_eq!(cursor_byte_range(text, None), None);
+    }
+
+    #[test]
+    fn insert_snippet_wraps_selection() {
+        let mut doc = Document::new("t");
+        let id = doc.create_node(0, "n");
+        doc.set_body(id, "hello world");
+        insert_snippet(&mut doc, id, cr(0, 5), "**");
+        assert_eq!(doc.nodes[&id].body, "**hello** world");
+    }
+
+    #[test]
+    fn insert_snippet_at_cursor() {
+        let mut doc = Document::new("t");
+        let id = doc.create_node(0, "n");
+        doc.set_body(id, "ab");
+        insert_snippet(&mut doc, id, cr(1, 1), "X");
+        assert_eq!(doc.nodes[&id].body, "aXb");
+    }
+}

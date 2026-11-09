@@ -4,6 +4,7 @@ use partner_core::{
     storage::FileLock,
 };
 use std::path::PathBuf;
+use zeroize::Zeroizing;
 
 pub struct OpenDoc {
     pub path: PathBuf,
@@ -19,8 +20,8 @@ pub enum Screen {
     Unlock {
         path: PathBuf,
         lock: FileLock,
-        pass: String,
-        key: String,
+        pass: Zeroizing<String>,
+        key: Zeroizing<String>,
         use_key: bool,
         error: Option<String>,
     },

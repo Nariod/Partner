@@ -15,9 +15,7 @@ pub enum Error {
     #[error("decryption error: {0}")]
     Decrypt(#[from] age::DecryptError),
     #[error("serialization error: {0}")]
-    Encode(#[from] bincode::error::EncodeError),
-    #[error("deserialization error: {0}")]
-    Decode(#[from] bincode::error::DecodeError),
+    Postcard(#[from] postcard::Error),
     #[error("invalid Partner file: {0}")]
     Format(String),
     #[error("this file is already open in another Partner instance")]
