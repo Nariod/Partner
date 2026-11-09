@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --workspace --locked
+      - run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          tar czf "partner-${VERSION}-linux-x86_64.tar.gz" -C target/release partner
+          sha256sum "partner-${VERSION}-linux-x86_64.tar.gz" >> checksums.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: |
+            partner-*-linux-x86_64.tar.gz
+            checksums.txt
+
+  build-windows:
+    name: Build Windows artifacts (exe + MSI)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --workspace --locked
+      - name: Install WiX v3
+        run: nuget install WiX -Version 3.11.2 -OutputDirectory wixtools
+      - name: Build MSI
+        run: |
+          $VERSION = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          & wixtools\WiX\tools\candle.exe -arch x64 -dVersion=$VERSION -dExePath=target\release\partner.exe -out target\wix\ packaging\windows\partner.wxs
+          & wixtools\WiX\tools\light.exe -out target\release\partner-$VERSION-x86_64.msi target\wix\partner.wixobj
+      - name: Package zip
+        run: |
+          $VERSION = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          Compress-Archive -Path target\release\partner.exe -DestinationPath "partner-${VERSION}-windows-x86_64.zip"
+      - name: Checksums
+        run: |
+          Get-FileHash partner-*-windows-x86_64.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path.Name)" } >> checksums.txt
+          Get-FileHash target\release\partner-*-x86_64.msi -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path.Name)" } >> checksums.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            partner-*-windows-x86_64.zip
+            target\release\partner-*-x86_64.msi
+            checksums.txt
+
+  flatpak:
+    name: Build Flatpak bundle
+    runs-on: ubuntu-latest
+    container: flathub/flatpak-builder:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build bundle
+        run: |
+          flatpak-builder --user --force-clean --repo=repo build-dir packaging/io.github.Nariod.Partner.yml
+          VERSION="${GITHUB_REF_NAME#v}"
+          flatpak build-bundle repo "partner-${VERSION}-x86_64.flatpak" io.github.Nariod.Partner
+          sha256sum "partner-${VERSION}-x86_64.flatpak" >> checksums.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-flatpak
+          path: |
+            partner-*-x86_64.flatpak
+            checksums.txt
+
+  publish:
+    name: Publish GitHub Release
+    needs: [build-linux, build-windows, flatpak]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: release-*
+          merge-multiple: true
+      - name: Merge checksums
+        run: cat artifacts/release-*/checksums.txt | sort -u > checksums.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            checksums.txt
+            artifacts/release-*/*
+          generate_release_notes: true

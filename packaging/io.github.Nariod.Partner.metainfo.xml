@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Nariod.Partner</id>
+  <name>Partner</name>
+  <summary>Encrypted single-file hierarchical notes</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+  <developer id="io.github.Nariod">
+    <name>Nariod</name>
+  </developer>
+  <description>
+    <p>
+      Partner keeps all notes for one security mission in a single .partner
+      file, encrypted with the age format. Hierarchical notes, Markdown
+      editing with preview, embedded screenshots, full-text search, auto-lock
+      and rotating encrypted backups. No telemetry, no network permission in
+      the Flatpak build.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.Nariod.Partner.desktop</launchable>
+  <provides>
+    <binary>partner</binary>
+    <mediatype>application/x-partner</mediatype>
+  </provides>
+  <releases>
+    <release version="0.1.0"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+  <url type="homepage">https://github.com/Nariod/Partner</url>
+  <url type="bugtracker">https://github.com/Nariod/Partner/issues</url>
+</component>
