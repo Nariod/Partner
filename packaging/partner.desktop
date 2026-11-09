@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Partner
+Comment=Encrypted single-file hierarchical notes for security missions
+Exec=partner %f
+Icon=io.github.Nariod.Partner
+Terminal=false
+Type=Application
+Categories=Utility;Office;
+MimeType=application/x-partner;
+StartupWMClass=io.github.Nariod.Partner

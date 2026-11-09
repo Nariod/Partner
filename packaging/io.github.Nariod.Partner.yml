@@ -1,0 +1,24 @@
+app-id: io.github.Nariod.Partner
+runtime: org.gnome.Platform
+runtime-version: "47"
+sdk: org.gnome.Sdk
+command: partner
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  - --talk-name=org.freedesktop.portal.Documents
+  - --filesystem=xdg-config/Partner:create
+modules:
+  - name: partner
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --locked
+      - install -Dm755 target/release/partner /app/bin/partner
+      - install -Dm644 packaging/partner.desktop /app/share/applications/io.github.Nariod.Partner.desktop
+      - install -Dm644 packaging/io.github.Nariod.Partner.metainfo.xml /app/share/metainfo/io.github.Nariod.Partner.metainfo.xml
+      - install -Dm644 packaging/icons/io.github.Nariod.Partner.svg /app/share/icons/hicolor/scalable/apps/io.github.Nariod.Partner.svg
+    sources:
+      - type: dir
+        path: .

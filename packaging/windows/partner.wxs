@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="Partner" Version="$(var.Version)" Manufacturer="Nariod"
+           UpgradeCode="7f3c2a1e-9b4d-4e5a-8c6f-2d1b0a9e8f77">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine"/>
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Partner is already installed."/>
+    <MediaTemplate EmbedCab="yes"/>
+    <Feature Id="ProductFeature" Level="1">
+      <ComponentRef Id="MainExecutable"/>
+      <ComponentRef Id="ApplicationShortcut"/>
+    </Feature>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Partner">
+          <Component Id="MainExecutable" Guid="*">
+            <File Id="PartnerExe" Source="$(var.ExePath)" KeyPath="yes"/>
+          </Component>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Partner">
+          <Component Id="ApplicationShortcut" Guid="*">
+            <Shortcut Id="AppShortcut" Name="Partner" Description="Encrypted single-file notes"
+                      Target="[INSTALLFOLDER]partner.exe" WorkingDirectory="INSTALLFOLDER"/>
+            <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+            <RegistryValue Root="HKCU" Key="Software\Nariod\Partner" Name="installed"
+                           Type="integer" Value="1" KeyPath="yes"/>
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+  </Product>
+</Wix>
